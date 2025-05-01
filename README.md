@@ -466,7 +466,7 @@ Ahora aplicaremos la transformada de wavelet donde deberemos de tener una seria 
 Observamos los daos inerpolados donde se espera que sean los mismos datos sea muy similar la grafica a la R-R anterior con la diferencia que se observe un punto en cada dato tomado como se observa en la imagen:
 
 
-![alt text](<images/ECG_interpolate_RR.png>)
+![alt text](<interpolado.png>)
 
 Ahora bien se observa la señal original en puntos de los R-R original de la señal original y el interpolado muy similar donde se hace una pequeña atenuacion. 
             
@@ -550,7 +550,8 @@ Calculamos la potencia de los coeficientes dado que es elevado al cuadrado.
 
 Ahora vamos a imprimir o a visualizar el espectro de wavelet como se observa en la siguiente grafica:
 
-![alt text](<images/ECG_wavelet.png>)
+![alt text](<wavelet.png>)
+
 El espectro wavelet de la señal de ECG revela información detallada sobre las componentes temporales y frecuenciales de la actividad cardíaca, permitiendo identificar las ondas características (P, QRS, T) en escalas específicas: los complejos QRS (alta frecuencia, 10-25 Hz) se distinguen en escalas más finas, mientras que las ondas P y T (baja frecuencia, ~0.5-5 Hz) aparecen en escalas gruesas. 
 
 
