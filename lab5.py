@@ -269,38 +269,10 @@ if len(rr_intervals_sec) > 5: # Necesitamos una serie de RR razonable
         plt.tight_layout(rect=[0, 0.03, 1, 0.97]) # Ajustar layout para título
         plt.show()
 
-        # Análisis crítico (descripción según punto 9e):
-        print("\nAnálisis Crítico (Punto 9e):")
-        print("- Observa el espectrograma: ¿Hay zonas/tiempos con mayor potencia en la banda LF (roja)? ¿Y en la HF (cyan)?")
-        print("- Mira los gráficos de Potencia LF y HF vs Tiempo: ¿Cómo varían a lo largo de los 5 minutos?")
-        print("- ¿Hay periodos donde predomina la potencia LF sobre la HF (ratio LF/HF alto)? Esto podría sugerir mayor actividad simpática.")
-        print("- ¿Hay periodos donde predomina la potencia HF (ratio LF/HF bajo)? Esto podría sugerir mayor actividad parasimpática (vagal).")
-        print("- Dado que la señal fue tomada en reposo (según punto 9b), se esperaría una predominancia relativa de la actividad HF o un ratio LF/HF no muy elevado, pero esto depende mucho del estado del sujeto.")
-
+       
     else:
         print("No hay suficientes puntos en la serie RR interpolada para análisis CWT.")
 else:
     print("No hay suficientes datos de intervalos RR (>5) para análisis wavelet.")
 
 
-# --- Punto 10: Resultados Esperados / Discusión ---
-# --- Reflexiones sobre Punto 10: Resultados Esperados ---
-
-# 1. Comparación Dominio Tiempo vs. Tiempo-Frecuencia:
-#    - Dominio Tiempo (SDNN): Da una medida global de la variabilidad total en los 5 min.
-#    - Dominio Tiempo-Frecuencia (Wavelet): Muestra CÓMO cambia la distribución de potencia entre LF y HF a lo largo del tiempo.
-#      Por ejemplo, el SDNN podría ser el mismo en dos grabaciones, pero una podría tener fluctuaciones rápidas entre LF y HF y la otra no; el wavelet lo mostraría.
-
-# 2. Relación LF/HF con Actividad Autonómica:
-#    - Banda LF (0.04-0.15 Hz): Se asocia con influencias simpáticas y parasimpáticas (más simpáticas, control barorreflejo).
-#    - Banda HF (0.15-0.4 Hz): Se asocia principalmente con la modulación parasimpática (vagal) ligada a la respiración (arritmia sinusal respiratoria).
-#    - Ratio LF/HF: A menudo se interpreta como un índice del balance simpático-vagal (valores altos -> predominio simpático; valores bajos -> predominio parasimpático).
-#      Esta interpretación debe ser cautelosa.
-#    - Discusión: ¿Los patrones de potencia LF y HF observados en el espectrograma y gráficos temporales son consistentes con una condición de reposo?
-
-# 3. Transmisión del conocimiento:
-#    - La guía menciona la importancia de poder explicar el código desarrollado (por ejemplo, en un repositorio público).
-#    - Asegúrate de entender cada paso del código, los parámetros elegidos (filtros, picos, wavelet), y cómo interpretar los resultados.
-#    - Comenta bien tu código final para que otros (y tú en el futuro) puedan entenderlo.
-
-# --- Fin del Análisis ---

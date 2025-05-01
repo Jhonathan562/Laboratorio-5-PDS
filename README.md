@@ -425,7 +425,7 @@ Desviación Estándar de Intervalos RR : 213.23 ms
 
     # --- Aplicación de transformada Wavelet ---
 
-    if len(rr_intervals_sec) > 5: # Necesitamos una serie de RR razonable
+    if len(rr_intervals_sec) > 10: # Necesitamos una serie de RR razonable
         # 1. Interpolar la serie RR para tener muestreo uniforme
         # Frecuencia de muestreo para la serie RR interpolada (común: 4 Hz)
         target_fs_rr = 4.0
@@ -433,6 +433,10 @@ Desviación Estándar de Intervalos RR : 213.23 ms
         if target_fs_rr > fs / 2:
             target_fs_rr = fs / 2
             print(f"Ajustando fs de interpolación RR a {target_fs_rr:.2f} Hz (<= fs/2)")
+
+Ahora aplicaremos la transformada de wavelet donde deberemos de tener una seria de R-R dado por los datos anteriormente capturados razonable entiendase como una muestra mayor a 10 datos, luego de ello vamos a ajustar la interpolacion de los datos RR, osea que los datos sean mayores a mas de 2 datos para poder hacer la transformada de wavelet.
+
+
 
         # Crear rejilla de tiempo uniforme desde el primer hasta el último RR detectado
         time_uniform = np.arange(rr_times_sec[0], rr_times_sec[-1], 1/target_fs_rr)
@@ -450,6 +454,14 @@ Desviación Estándar de Intervalos RR : 213.23 ms
             plt.legend()
             plt.grid(True)
             plt.show()
+
+Observamos los daos inerpolados donde se espera que sean los mismos datos sea muy similar la grafica a la R-R anterior con la diferencia que se observe un punto en cada dato tomado como se observa en la imagen:
+
+
+![alt text](<images/ECG_interpolate_RR.png>)
+
+Ahora bien se observa la señal original en puntos de los R-R original de la señal original y el interpolado muy similar donde se hace una pequeña atenuacion. 
+            
 
 
 
@@ -476,8 +488,28 @@ Desviación Estándar de Intervalos RR : 213.23 ms
             coefficients, frequencies = pywt.cwt(rr_interpolated, scales, wavelet_name,
                                                 sampling_period=sampling_period_rr)
 
+Vamos a hacer la transformada de wavelet para este debemos tener en cuenta que esta misma se va a desglosar en varios puntos para ello el primero sera el ancho de banda entendiendose que el ancho de banda frecuencia LF (0.04-0.15 Hz) y HF (0.15-0.4 Hz), que están relacionadas con el sistema nervioso autónomo, en este caso el Corazon, o musculo cardiaco.
+
+Ahora definimos estas bandas de frecuencia se elige la wavelet Morlet compleja con parámetros:
+B = 1.5 → control del ancho de banda.
+C = 1.0 → frecuencia central.
+Esta hara un análisis tiempo-frecuencia, como la HRV, para el sistema nervios autonomo, asi mismo definimos la escala de LF y HF en este caso:
+LF: 0.04–0.15 Hz
+HF: 0.15–0.4 Hz
+
+Ahora traduciremos la frecuencia que se encontraba en escala con 
+pywt.scale2frequency(), para luego generar un espacio de escalas de la frecuencia en maximas y minimas con np.geomspace() y por ultimo multiplicaremos por la frecuencia de muestreo para darla en el tiempo real. 
+
+y ahora calculamos el CWT:
+
+Calculando CWT con wavelet 'cmor1.5-1.0'...
+
+
+
             # 3. Calcular la potencia (magnitud al cuadrado de los coeficientes)
             power = np.abs(coefficients)**2
+
+Calculamos la potencia de los coeficientes dado que es elevado al cuadrado.
 
             # 4. Visualizar el Espectrograma Wavelet
             plt.figure(figsize=(14, 7))
@@ -507,6 +539,12 @@ Desviación Estándar de Intervalos RR : 213.23 ms
                 labels.append(f'HF ({hf_low}-{hf_high} Hz)')
             plt.legend(handles, labels, loc='upper right')
             plt.show()
+
+Ahora vamos a imprimir o a visualizar el espectro de wavelet como se observa en la siguiente grafica:
+
+![alt text](<images/ECG_wavelet.png>)
+
+
 
             # 5. Análisis de Bandas LF y HF a lo largo del tiempo
             lf_mask = (frequencies >= lf_low) & (frequencies <= lf_high)
@@ -552,10 +590,16 @@ Desviación Estándar de Intervalos RR : 213.23 ms
             plt.tight_layout(rect=[0, 0.03, 1, 0.97]) # Ajustar layout para título
             plt.show()
 
+Por ultimo vamos a separar las bandas LH y HF bandas de frecuencia para el espectro de un sistema nervioso autonomo para observar en mayor medida la transformada de wavelet como se observa en la siguiente grafica:
+
+![alt text](<images/ECG_LH_HF.png>)
+
         else:
             print("No hay suficientes puntos en la serie RR interpolada para análisis CWT.")
     else:
-        print("No hay suficientes datos de intervalos RR (>5) para análisis wavelet.")
+        print("No hay suficientes datos de intervalos RR (>10) para análisis wavelet.")
+
+Se compuerba de que la cantidad de datos R-R dados despues por la interpolaralizacion sea fiable osea mayor a 10.
 
 
 
