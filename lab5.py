@@ -1,110 +1,65 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.signal import butter, filtfilt, iirnotch, find_peaks
+from scipy.signal import butter, filtfilt, find_peaks
 import pywt # Importar PyWavelets
 
+file_path = "DATA_ECG/ECG_7.csv" 
 
+df = pd.read_csv(file_path)
+tiempo = df.iloc[:, 0].values  
+voltaje = df.iloc[:, 1].values  
 
-file_path = "DATA_ECG/ECG_lab5.csv" 
-try:
-    df = pd.read_csv(file_path)
-    tiempo = df.iloc[:, 0].values  
-    voltaje = df.iloc[:, 1].values  
-except FileNotFoundError:
-    print(f"Error: No se encontró el archivo en la ruta '{file_path}'. Verifica la ubicación.")
-    print("ADVERTENCIA: Usando datos simulados porque no se encontró el archivo.")
-    fs_sim = 250 
-    duration_sim = 300 
-    tiempo = np.linspace(0, duration_sim, int(fs_sim * duration_sim), endpoint=False)
-    import heartpy as hp
-    voltaje, _ = hp.synth.synthesize(duration=duration_sim, sampling_rate=fs_sim, hr=65)
-    # --- FIN SIMULACIÓN ---
-except Exception as e:
-    print(f"Ocurrió un error al leer el archivo: {e}")
-    import sys
-    sys.exit()
+fs_estimates = 1 / np.diff(tiempo)
+fs_mean = np.nanmedian(fs_estimates) # Usar mediana es más robusto a outliers que la media
+print(f"Frecuencia de muestreo estimada es de: {fs_mean:.2f} Hz")
 
-
-# Estimar la frecuencia de muestreo (fs) desde el archivo de tiempo
-# ¡¡¡ ADVERTENCIA !!! El cálculo original dio ~12.77 Hz, lo cual es MUY bajo para ECG.
-# Verifica tu columna de tiempo. Usaremos este valor bajo pero los resultados no serán fiables.
-if 'fs_sim' not in locals(): # Si no estamos usando datos simulados
-    fs_estimates = 1 / np.diff(tiempo)
-    fs_mean = np.nanmedian(fs_estimates) # Usar mediana es más robusto a outliers que la media
-    print(f"Frecuencia de muestreo estimada (mediana): {fs_mean:.2f} Hz")
-    # Validar si la fs estimada es razonable
-    if fs_mean < 50: # Umbral arbitrario, ajustar según necesidad
-         print("\n*** ADVERTENCIA SEVERA: La frecuencia de muestreo estimada es MUY BAJA (<50 Hz). ***")
-         print("*** Los resultados del análisis (filtros, picos, HRV, wavelet) NO serán fiables. ***")
-         print("*** Por favor, verifica los datos de tiempo en tu archivo CSV o la configuración de adquisición. ***\n")
-         # Considera detener la ejecución o usar una fs asumida si estás seguro que la calculada es incorrecta
-         # fs_mean = 250 # Ejemplo: Forzar a 250 Hz si sabes que ese era el valor correcto
-         # print(f"*** USANDO fs = {fs_mean} Hz ASUMIDA para continuar análisis. ***\n")
-else:
-    fs_mean = fs_sim # Usar la fs de los datos simulados
-    print(f"Usando frecuencia de muestreo simulada: {fs_mean:.2f} Hz")
-
-fs = fs_mean # Frecuencia de muestreo a usar en el resto del código
+fs = fs_mean # Es decir que Fs sera igual a la frecuencia de muestreo estimada
 
 # Graficar la señal original
 plt.figure(figsize=(15, 4))
-plt.plot(tiempo, voltaje, label="Señal ECG Original", color="b")
+plt.plot(tiempo, voltaje, label="Señal ECG Original", color="r")
 plt.xlabel("Tiempo (s)")
-plt.ylabel("Amplitud / Voltaje")
-plt.title("Señal ECG Original (5 min)")
+plt.ylabel("Amplitud / Voltaje (v) ")
+plt.title("Señal ECG Original (1 min)")
 plt.legend()
 plt.grid(True)
 plt.show()
 
 
-# --- Punto 9c: Pre-procesamiento de la señal ---
-
-print("\n--- Iniciando Punto 9c: Pre-procesamiento ---")
 
 # 1. Filtrado IIR (Butterworth como ejemplo)
-nyquist = 0.5 * fs
-order = 4 # Orden del filtro
+nyquist = 0.5 * fs #Para que cumpla el teorema de Nyquist
+order = 5 # Orden del filtro
 
-# Filtro Pasa-Altas (remover deriva línea base)
-lowcut = 0.5  # Hz
-# Asegurarse que lowcut < nyquist
+# Filtro IIR pasa bandas empezamos con un pasa altos y luego un pasa bajos
+# Filtro Pasa-Altos
+lowcut = 0.5  # Frecuencia de corte del filtro pasa altos
+# Asegurar que el Teorema de Nyquist se cumpla
 if lowcut >= nyquist:
-    print(f"Advertencia: Frecuencia de corte Pasa-Altas ({lowcut} Hz) es mayor o igual a Nyquist ({nyquist} Hz). Omitiendo filtro Pasa-Altas.")
+    print(f"Advertencia: Frecuencia de corte Pasa-Altos ({lowcut} Hz) es mayor o igual a Nyquist ({nyquist} Hz). omitir el filtro.")
     ecg_filtered_hp = voltaje # No aplicar filtro
 else:
     low = lowcut / nyquist
     b_hp, a_hp = butter(order, low, btype='highpass')
-    ecg_filtered_hp = filtfilt(b_hp, a_hp, voltaje) # filtfilt evita desfase
-    print(f"Aplicado Filtro Pasa-Altas > {lowcut} Hz")
+    ecg_filtered_hp = filtfilt(b_hp, a_hp, voltaje) # Realiza el filtro
+    print(f"Aplicado Filtro Pasa-Altos de {lowcut} Hz")
 
-# Filtro Pasa-Bajas (remover ruido alta frecuencia)
-highcut = 40.0 # Hz - Puede ser necesario reducirlo si fs es muy baja
+# Filtro Pasa-Bajos 
+highcut = 40.0 # 40 Hz segun la guia sin embargo no puede realizarse porque no cumple con el teorema de Nyquist
 # Asegurarse que highcut < nyquist
 if highcut >= nyquist:
-     print(f"Advertencia: Frecuencia de corte Pasa-Bajas ({highcut} Hz) es mayor o igual a Nyquist ({nyquist} Hz). Ajustando a Nyquist*0.99.")
-     highcut = nyquist * 0.99 # Ajustar para evitar error
+     print(f"Advertencia: Frecuencia de corte Pasa-Bajas ({highcut} Hz) es mayor o igual a Nyquist ({nyquist} Hz). Ajustando a Nyquist*0.99 para cumplir el teorema.")
+     highcut = nyquist * 0.99 # Ajusta el filtro pasa bajos
 
 high = highcut / nyquist
 b_lp, a_lp = butter(order, high, btype='lowpass')
-ecg_filtered_hplp = filtfilt(b_lp, a_lp, ecg_filtered_hp)
-print(f"Aplicado Filtro Pasa-Bajas < {highcut:.2f} Hz")
+ecg_filtered = filtfilt(b_lp, a_lp, ecg_filtered_hp)
+print(f"Aplicado Filtro Pasa-Bajos de o menor {highcut:.2f} Hz")
 
-# Filtro Notch (opcional, si hay ruido de red eléctrica - 50 o 60 Hz)
-# ¡¡¡ Con fs=12.77 Hz, Nyquist es ~6.38 Hz, NO SE PUEDE aplicar Notch a 50/60 Hz !!!
-f0_notch = 60.0 # Hz (Ajustar a 50 Hz si es necesario)
-if f0_notch < nyquist:
-    Q = 30.0       # Factor de calidad
-    b_notch, a_notch = iirnotch(f0_notch, Q, fs)
-    ecg_filtered = filtfilt(b_notch, a_notch, ecg_filtered_hplp)
-    print(f"Aplicado Filtro Notch @ {f0_notch} Hz")
-    # Ecuación en diferencias (ejemplo para Notch):
-    # y[n] = (b[0]/a[0])*x[n] + (b[1]/a[0])*x[n-1] + (b[2]/a[0])*x[n-2] - (a[1]/a[0])*y[n-1] - (a[2]/a[0])*y[n-2]
-    print("  Coeficientes Notch (b):", b_notch)
-    print("  Coeficientes Notch (a):", a_notch)
-else:
-    print(f"Omitiendo Filtro Notch @ {f0_notch} Hz (Frecuencia > Nyquist)")
-    ecg_filtered = ecg_filtered_hplp # Usar la señal sin Notch
+## Se hicieron un filtro de 0.5 Hz el pasa altos y un filtro pasa bajos de 6.20 Hz
+
+
 
 # Visualización de la señal filtrada
 plt.figure(figsize=(15, 4))
@@ -116,18 +71,31 @@ plt.legend()
 plt.grid(True)
 plt.show()
 
-# 2. Identificación de Picos R
-# Ajustar 'height' y 'distance' es CRUCIAL, especialmente con fs baja.
+# Graficar señal original vs filtrada
+plt.figure(figsize=(10, 4))
+plt.plot(tiempo, voltaje, label="Señal Original", alpha=0.5, color="gray")
+plt.plot(tiempo, ecg_filtered, label="Señal Filtrada", color="green")
+plt.xlabel("Tiempo (s)")
+plt.ylabel("Voltaje (V)")
+plt.title("Señal EMG antes y después del filtrado")
+plt.legend()
+plt.grid(True)
+plt.show()
+
+
+# Identificación de Picos R
+# Ajusta la altura y la distancia entre picos R.
 # Distance: Mínima separación entre picos. Si HR max=180 bpm -> 0.33s
-min_hr_bpm = 40
-max_hr_bpm = 180
-min_distance_sec = 60.0 / max_hr_bpm
-min_distance_samples = int(min_distance_sec * fs)
+min_hr_bpm = 40 # Esto sera los BMPS minima entre picos la cual sera 40 BPM osea 1,5 segundos
+max_hr_bpm = 180 # Este sera los BMPS maxima entre picos la cual sera de 0,33 segundos
+min_distance_sec = 60.0 / max_hr_bpm #Distancia minima en segundos porque es 60/BMP la cual sera de 0,33 segundos o 333 ms
+min_distance_samples = int(min_distance_sec * fs) #Convierte la distancia minima a tiempo para la grafica
 if min_distance_samples < 1: min_distance_samples = 1 # Asegurar distancia mínima de 1
 
-# Umbral (height): puede requerir ajuste manual o métodos adaptativos
+# Ahora adaptamos el Umbral pues sera el o la altura maxima que dara el pico o el R
 # Empezamos con un umbral basado en la desviación estándar
-peak_height_threshold = np.mean(ecg_filtered) + 0.6 * np.std(ecg_filtered)
+# Se hace con la desviacion estandarf porque debe mantener todos los picos R como cierta altura media 
+peak_height_threshold = np.mean(ecg_filtered) + 0.6 * np.std(ecg_filtered) # Se coge la nueva señal ya filtrada para hayar los picos R
 # Asegurarse que el umbral no sea demasiado bajo si la señal tiene offset negativo
 if peak_height_threshold < np.percentile(ecg_filtered, 75): # Heurística simple
      peak_height_threshold = np.percentile(ecg_filtered, 75)
@@ -137,16 +105,11 @@ print(f"Detectando picos R con altura > {peak_height_threshold:.3f} y distancia 
 peaks_indices, properties = find_peaks(ecg_filtered, height=peak_height_threshold, distance=min_distance_samples)
 
 print(f"Número de picos R detectados: {len(peaks_indices)}")
-if len(peaks_indices) < 10: # Chequeo básico de si se detectaron suficientes picos
-    print("*** ADVERTENCIA: Muy pocos picos R detectados. Revisa los parámetros de find_peaks (height, distance) y la calidad de la señal filtrada. ***")
 
 # Visualización de picos detectados
 plt.figure(figsize=(15, 4))
 plt.plot(tiempo, ecg_filtered, label='ECG Filtrada')
-if len(peaks_indices) > 0:
-    plt.plot(tiempo[peaks_indices], ecg_filtered[peaks_indices], 'ro', label='Picos R Detectados')
-else:
-    print("No se detectaron picos R con los parámetros actuales.")
+plt.plot(tiempo[peaks_indices], ecg_filtered[peaks_indices], 'ro', label='Picos R Detectados')
 plt.title('Detección de Picos R')
 plt.xlabel('Tiempo (s)')
 plt.ylabel('Amplitud / Voltaje')
@@ -154,59 +117,32 @@ plt.legend()
 plt.grid(True)
 plt.show()
 
-# 3. Cálculo de Intervalos R-R (Necesitamos al menos 2 picos)
-if len(peaks_indices) > 1:
-    rr_intervals_samples = np.diff(peaks_indices)
-    rr_intervals_sec = rr_intervals_samples / fs # Convertir a segundos
-    # Tiempo correspondiente a cada intervalo RR (usualmente al final del intervalo)
-    rr_times_sec = tiempo[peaks_indices[1:]]
 
-    # Eliminar intervalos RR irrealistas (artefactos o detecciones falsas)
-    # Criterio simple: basado en rangos de HR fisiológicos
-    min_rr_sec = 60.0 / max_hr_bpm # e.g., 0.333s para 180bpm
-    max_rr_sec = 60.0 / min_hr_bpm # e.g., 1.5s para 40bpm
-    original_rr_count = len(rr_intervals_sec)
-    mask_rr = (rr_intervals_sec >= min_rr_sec) & (rr_intervals_sec <= max_rr_sec)
-    rr_intervals_sec = rr_intervals_sec[mask_rr]
-    rr_times_sec = rr_times_sec[mask_rr]
-    removed_rr_count = original_rr_count - len(rr_intervals_sec)
-    if removed_rr_count > 0:
-        print(f"Eliminados {removed_rr_count} intervalos RR fuera del rango [{min_rr_sec*1000:.0f} ms, {max_rr_sec*1000:.0f} ms]")
+# Se calculan los intervalor R-R para eso necesitamos 2 picos o 2 R ya dados en la grafica 
+if len(peaks_indices) > 1: #debe ser mayor a 1 porque el minimo de R-R son 2 
+    rr_intervals_samples = np.diff(peaks_indices) # R-R de los intervalos va a ser igual a la diferencia de los picos
+    rr_intervals_sec = rr_intervals_samples / fs # Convertimos los picos R-R a segundos para poder graficarlos 
+    rr_times_sec = tiempo[peaks_indices[1:]]     # Tiempo correspondiente a cada intervalo RR
 
     if len(rr_intervals_sec) > 1:
         # Visualización de la serie de intervalos R-R (Tacograma)
         plt.figure(figsize=(12, 5))
         plt.plot(rr_times_sec, rr_intervals_sec * 1000, marker='o', linestyle='-', label='Intervalos R-R')
-        plt.title('Serie de Intervalos R-R (Tacograma)')
+        plt.title('Serie de Intervalos R-R ')
         plt.xlabel('Tiempo (s)')
         plt.ylabel('Intervalo R-R (ms)')
         plt.grid(True)
         plt.show()
-    else:
-        print("No hay suficientes intervalos RR válidos para graficar el tacograma.")
-        rr_intervals_sec = np.array([]) # Vaciar para evitar errores posteriores
-else:
-    print("No se detectaron suficientes picos R para calcular intervalos RR.")
-    rr_intervals_sec = np.array([]) # Vaciar para evitar errores posteriores
 
-# --- Punto 9d: Análisis de HRV en el dominio del tiempo ---
-print("\n--- Iniciando Punto 9d: Análisis Dominio del Tiempo ---")
+# ---  Análisis de HRV en el dominio del tiempo ---
+mean_rr = np.mean(rr_intervals_sec) ## COGER EL INTERVALO DE DATOS DE RR
+sdnn = np.std(rr_intervals_sec) # Desviación estándar de los intervalos R-R
 
-if len(rr_intervals_sec) > 1:
-    mean_rr = np.mean(rr_intervals_sec)
-    sdnn = np.std(rr_intervals_sec) # Desviación estándar de los intervalos Normal-a-Normal
+print(f"Intervalo R-R Promedio : {mean_rr * 1000:.2f} ms") # Promedio de los intervalos R-R en este caso debe ser similar a 700 a 900 ms
+print(f"Desviación Estándar de Intervalos RR : {sdnn * 1000:.2f} ms") #Calculo de desviacion estandar
 
-    print(f"Intervalo R-R Promedio (Mean RR): {mean_rr * 1000:.2f} ms")
-    print(f"Desviación Estándar de Intervalos RR (SDNN): {sdnn * 1000:.2f} ms")
-    # Aquí se haría el análisis descrito en la guía, comparando con valores esperados
-    # o entre diferentes condiciones si las hubiera. Por ejemplo:
-    # Un SDNN bajo puede indicar estrés o poca adaptabilidad autonómica.
-    # Un SDNN alto (en reposo) generalmente indica buena función parasimpática.
-else:
-    print("No hay suficientes datos de intervalos RR para análisis en dominio del tiempo.")
 
-# --- Punto 9e: Aplicación de transformada Wavelet ---
-print("\n--- Iniciando Punto 9e: Análisis Wavelet (Tiempo-Frecuencia) ---")
+# --- Aplicación de transformada Wavelet ---
 
 if len(rr_intervals_sec) > 5: # Necesitamos una serie de RR razonable
     # 1. Interpolar la serie RR para tener muestreo uniforme
@@ -348,21 +284,23 @@ else:
 
 
 # --- Punto 10: Resultados Esperados / Discusión ---
-print("\n--- Reflexiones sobre Punto 10: Resultados Esperados ---")
-print("1. Comparación Dominio Tiempo vs. Tiempo-Frecuencia:")
-print(f"   - Dominio Tiempo (SDNN={sdnn*1000:.2f} ms si calculado): Da una medida global de la variabilidad total en los 5 min.")
-print("   - Dominio Tiempo-Frecuencia (Wavelet): Muestra CÓMO cambia la distribución de potencia entre LF y HF a lo largo del tiempo.")
-print("     Por ejemplo, el SDNN podría ser el mismo en dos grabaciones, pero una podría tener fluctuaciones rápidas entre LF y HF y la otra no; el wavelet lo mostraría.")
+# --- Reflexiones sobre Punto 10: Resultados Esperados ---
 
-print("\n2. Relación LF/HF con Actividad Autonómica:")
-print("   - Banda LF (0.04-0.15 Hz): Se asocia con influencias simpáticas y parasimpáticas (más simpáticas, control barorreflejo).")
-print("   - Banda HF (0.15-0.4 Hz): Se asocia principalmente con la modulación parasimpática (vagal) ligada a la respiración (arritmia sinusal respiratoria).")
-print("   - Ratio LF/HF: A menudo se interpreta como un índice del balance simpático-vagal (valores altos -> predominio simpático; valores bajos -> predominio parasimpático). Esta interpretación debe ser cautelosa.")
-print("   - Discusión: ¿Los patrones de potencia LF y HF observados en el espectrograma y gráficos temporales son consistentes con una condición de reposo?")
+# 1. Comparación Dominio Tiempo vs. Tiempo-Frecuencia:
+#    - Dominio Tiempo (SDNN): Da una medida global de la variabilidad total en los 5 min.
+#    - Dominio Tiempo-Frecuencia (Wavelet): Muestra CÓMO cambia la distribución de potencia entre LF y HF a lo largo del tiempo.
+#      Por ejemplo, el SDNN podría ser el mismo en dos grabaciones, pero una podría tener fluctuaciones rápidas entre LF y HF y la otra no; el wavelet lo mostraría.
 
-print("\n3. Transmisión del Conocimiento (GitHub):")
-print("   - La guía menciona [fuente: 36, 37] la importancia de poder explicar el código desarrollado (por ejemplo, en un repositorio público).")
-print("   - Asegúrate de entender cada paso del código, los parámetros elegidos (filtros, picos, wavelet), y cómo interpretar los resultados.")
-print("   - Comenta bien tu código final para que otros (y tú en el futuro) puedan entenderlo.")
+# 2. Relación LF/HF con Actividad Autonómica:
+#    - Banda LF (0.04-0.15 Hz): Se asocia con influencias simpáticas y parasimpáticas (más simpáticas, control barorreflejo).
+#    - Banda HF (0.15-0.4 Hz): Se asocia principalmente con la modulación parasimpática (vagal) ligada a la respiración (arritmia sinusal respiratoria).
+#    - Ratio LF/HF: A menudo se interpreta como un índice del balance simpático-vagal (valores altos -> predominio simpático; valores bajos -> predominio parasimpático).
+#      Esta interpretación debe ser cautelosa.
+#    - Discusión: ¿Los patrones de potencia LF y HF observados en el espectrograma y gráficos temporales son consistentes con una condición de reposo?
 
-print("\n--- Fin del Análisis ---")
+# 3. Transmisión del conocimiento:
+#    - La guía menciona la importancia de poder explicar el código desarrollado (por ejemplo, en un repositorio público).
+#    - Asegúrate de entender cada paso del código, los parámetros elegidos (filtros, picos, wavelet), y cómo interpretar los resultados.
+#    - Comenta bien tu código final para que otros (y tú en el futuro) puedan entenderlo.
+
+# --- Fin del Análisis ---
