@@ -250,6 +250,9 @@ Graficaremos la señal original dada anteriormente la cual debe ser la equivalen
 
 
 ![alt text](<images/ECG_origin.png>)
+La gráfica de electromiografía (EMG) muestra dos momentos claramente diferenciados. En el primer instante, correspondiente al reposo, la señal se presenta con una amplitud baja y estable, reflejando la mínima actividad muscular propia de un estado de relajación. Las oscilaciones son casi imperceptibles, sin picos abruptos, lo que indica que el sujeto no está realizando contracciones voluntarias. Este patrón típico de reposo confirma la ausencia de estímulos externos o esfuerzos por parte del paciente. 
+
+Al introducir el video como estímulo, la gráfica experimenta un cambio notable: aparecen oscilaciones de mayor amplitud y frecuencia, con picos repentinos que sugieren activación muscular en respuesta al contenido visual. Estos pulsos pueden asociarse a microcontracciones involuntarias, ya sea por sorpresa, tensión o empatía con lo observado, tam bien se concluye que los valores negativos se dan por ruido muscular al momento de moverse por reflejo.
 
 Ahora vamos a filtrar la señal con un filtro IIR donde usaremos un Butterworth para ello deberemos cumplir con el teorema de nyquist
 
@@ -313,6 +316,7 @@ Aplicado Filtro Pasa-Bajos de o menor 100 Hz
 Ahora se va a observar la señal filtrada donde se espera que ya no exista un offset y la señal inicie desde 0 debido a que esta se daba ya que tenia una parte AC.
 
 ![alt text](<images/ECG_filtered.png>)
+El offset en una señal filtrada de ECG se refiere a una componente de continua no deseada que puede alterar el análisis. Este offset puede surgir por factores como la polarización de los electrodos, interferencias externas o características propias del sistema de adquisición. Al aplicar filtros (como un pasa-altos o un filtro de línea base), se elimina esta deriva para centrar la señal alrededor de cero, facilitando la detección de eventos cardíacos como ondas P, QRS o T.
 
     # Graficar señal original vs filtrada
     plt.figure(figsize=(10, 4))
@@ -390,6 +394,8 @@ Ya con esto observamos la señal filtrada y los picos R-R que se detectan record
 
 Ahora vamos a calcular los intervalos R-R osea vamos a tomar el tiempo entre dos picos R, en donde el intervalo minimo es de 0.33 segundos osea que un pico a otro pico va a darse con una distancia de 0.33 segundos minimo, esta va a variar y va a ser el tiempo correspondiente a cada intervalo R-R
 
+De la señal de ECG analizada, podemos concluir que los intervalos R-R reflejan la variabilidad de la frecuencia cardíaca del paciente, donde el intervalo mínimo registrado (0.33 segundos) corresponde a una frecuencia cardíaca máxima de aproximadamente 180 lpm (calculada como 60/0.33). Esta variación en los intervalos R-R se puede decir que es normal.
+
 
         if len(rr_intervals_sec) > 1:
             # Visualización de la serie de intervalos R-R (Tacograma)
@@ -406,6 +412,8 @@ Ahora se grafica los intervalos R-R y con esta grafica ahora vamos a realizar la
 ![alt text](<images/ECG_intervalosR.png>)
 
 Se observan los 353 picos R-R y con este en Y se dara el intervalo entre cada pico siendo en ms, donde el minimo eran 330 ms o 0.33 s, como se observa en la grafica de pico a pico hay una diferencia de tiempo alrededor de 400 a 1500 ms.
+
+De la señal de ECG analizada, se concluye que se registraron 353 intervalos R-R con una variabilidad significativa, donde el intervalo mínimo fue de 330 ms (equivalente a ~180 lpm) y los intervalos fluctuaron entre 400 ms y 1500 ms, reflejando frecuencias cardíacas desde ~40 lpm hasta ~150 lpm. Esta amplia variación sugiere una elevada variabilidad de la frecuencia cardíaca (VFC), que puede ser por los tres escenarios de tiemppo que tuvimos de una modulación autonomica en el instante de total relajación y otro instante perturvando al sujeto de prueba con un video. 
 
 
 
@@ -543,7 +551,7 @@ Calculamos la potencia de los coeficientes dado que es elevado al cuadrado.
 Ahora vamos a imprimir o a visualizar el espectro de wavelet como se observa en la siguiente grafica:
 
 ![alt text](<images/ECG_wavelet.png>)
-
+El espectro wavelet de la señal de ECG revela información detallada sobre las componentes temporales y frecuenciales de la actividad cardíaca, permitiendo identificar las ondas características (P, QRS, T) en escalas específicas: los complejos QRS (alta frecuencia, 10-25 Hz) se distinguen en escalas más finas, mientras que las ondas P y T (baja frecuencia, ~0.5-5 Hz) aparecen en escalas gruesas. 
 
 
             # 5. Análisis de Bandas LF y HF a lo largo del tiempo
@@ -593,6 +601,7 @@ Ahora vamos a imprimir o a visualizar el espectro de wavelet como se observa en 
 Por ultimo vamos a separar las bandas LH y HF bandas de frecuencia para el espectro de un sistema nervioso autonomo para observar en mayor medida la transformada de wavelet como se observa en la siguiente grafica:
 
 ![alt text](<images/ECG_LH_HF.png>)
+La gráfica muestra la evolución temporal de la potencia en las bandas LF y HF, junto con el ratio LF/HF (un indicador del equilibrio autonómico). Los valores de potencia HF (0.00–0.06) superan a los de LF (0.00–0.03) en ciertos intervalos, sugiriendo un predominio parasimpático (vagal) en esos momentos. Sin embargo, el ratio LF/HF presenta oscilaciones marcadas (desde 0 hasta 250), lo que podría indicar episodios de activación simpática (ratio alto) o transiciones bruscas en el estado autonómico. 
 
         else:
             print("No hay suficientes puntos en la serie RR interpolada para análisis CWT.")
@@ -602,6 +611,25 @@ Por ultimo vamos a separar las bandas LH y HF bandas de frecuencia para el espec
 Se compuerba de que la cantidad de datos R-R dados despues por la interpolaralizacion sea fiable osea mayor a 10.
 
 
+# Requisitos
+- Python 3.11
+- Math lab
+- Circuito ECG
+- Cable de comunicación serial 
+- Internet 
+- Contenido grafico fuerte
 
+## Bibliografia 
+- Mallat, S. (2009). A Wavelet Tour of Signal 
+(Fundamentos matemáticos de la transformada wavelet)
+
+- Addison, P. S. (2017). The Illustrated Wavelet .
+(Aplicaciones de wavelets en señales biomédicas, como el ECG)
+- Clifford, G. D., Azuaje, F., & McSharry, P. E. (2006). Advanced Methods and Tools for ECG Data Analysis. Artech House.
+- Alcaraz, R., & Rieta, J. J. (2010). A review on wavelet analysis of the ECG for arrhythmia detection.
+- Singh, O., & Sunkaria, R. K. (2017). Wavelet-based denoising of ECG signal for HRV analysis. 
+## Contactos 
+- Jose Daniel Porras est.jose.dporras@unimilitar.edu.co
+- Jhonathan David Guevara Ramirez est.jhonathan.guev@unimilitar.edu.co
 
 
