@@ -211,13 +211,18 @@ Esto permitira graficar la ventana en tiempo real ms por cada dato lo que nos pe
 
 Se guardan los datos en un archivo csv y con ello nos permitira luego graficarlos en python y con ello poder procesar la señal.
 ## PYTHON
+
+Ahora deberemos procesar la señal anteriormente capturada.
+
     import pandas as pd
     import numpy as np
     import matplotlib.pyplot as plt
     from scipy.signal import butter, filtfilt, find_peaks
     import pywt # Importar PyWavelets
 
-    file_path = "DATA_ECG/ECG_7.csv" 
+En primer lugar vamos a importar algunas librerias en este caso pandas para los calculos con numpy para las graficas usamos el plt, para los filtros el cual sera un IIR usaremos butter, y para la transformada de wavelets usaremos pywt
+
+    file_path = "DATA_ECG/ECG_lab5.csv" 
 
     df = pd.read_csv(file_path)
     tiempo = df.iloc[:, 0].values  
@@ -229,6 +234,8 @@ Se guardan los datos en un archivo csv y con ello nos permitira luego graficarlo
 
     fs = fs_mean # Es decir que Fs sera igual a la frecuencia de muestreo estimada
 
+Ahora vamos a capturar el archivo en este caso se llama ECG_lab5 luego de ello vamos a leer el archivo y capturaremos dos variables una en x sera tiempo y otra en y que sera el voltaje, ahora calcularemos la frecuencia de muestreo estimada con 1/T donde la frecuencia de muestreo estimada fue de 703 Hz lo cual se encuentra muy por debajo de los 1Khz que se esperaban capturar esto puede ser debido a que uno que otro dato no se enviaba de la forma adecuada, y luego fs sera igual a fs_mean la que se acaba de calcular.
+
     # Graficar la señal original
     plt.figure(figsize=(15, 4))
     plt.plot(tiempo, voltaje, label="Señal ECG Original", color="r")
@@ -239,13 +246,24 @@ Se guardan los datos en un archivo csv y con ello nos permitira luego graficarlo
     plt.grid(True)
     plt.show()
 
+Graficaremos la señal original dada anteriormente la cual debe ser la equivalente a la de matlab.
+
+
+![alt text](<images/ECG_origin.png>)
+
+Ahora vamos a filtrar la señal con un filtro IIR donde usaremos un Butterworth para ello deberemos cumplir con el teorema de nyquist
 
 
     # 1. Filtrado IIR (Butterworth como ejemplo)
     nyquist = 0.5 * fs #Para que cumpla el teorema de Nyquist
     order = 5 # Orden del filtro
 
+Dicho teorema dice que la mitad de la fs en este caso que sera de 351,5 Hz debera ser mayor al lowcut y al highcut osea mayor a el filtro el cual ha de aplicarse
+
     # Filtro IIR pasa bandas empezamos con un pasa altos y luego un pasa bajos
+
+Vamos a hacer un filtro pasa-bandas de 0.5Hz a 100 Hz debido a que es la frecuencia cardiaca que normalmente utiliza el corazon para comunicarse de forma fisiologica.
+
     # Filtro Pasa-Altos
     lowcut = 0.5  # Frecuencia de corte del filtro pasa altos
     # Asegurar que el Teorema de Nyquist se cumpla
@@ -258,8 +276,12 @@ Se guardan los datos en un archivo csv y con ello nos permitira luego graficarlo
         ecg_filtered_hp = filtfilt(b_hp, a_hp, voltaje) # Realiza el filtro
         print(f"Aplicado Filtro Pasa-Altos de {lowcut} Hz")
 
+Filtro pasa-altos de 0.5 Hz el cual es menor a 351,5 Hz osea que cumple el teorema de Nyquist donde primero se va a hacer un if con el fin de observar si se cumple o no con el teorema de Nyquist debido a que si no se cumple no se podra aplicar el filtro ya con esto se imprime un:
+
+Aplicado Filtro Pasa-Altos de 0.5 Hz
+
     # Filtro Pasa-Bajos 
-    highcut = 40.0 # 40 Hz segun la guia sin embargo no puede realizarse porque no cumple con el teorema de Nyquist
+    highcut = 100.0 
     # Asegurarse que highcut < nyquist
     if highcut >= nyquist:
         print(f"Advertencia: Frecuencia de corte Pasa-Bajas ({highcut} Hz) es mayor o igual a Nyquist ({nyquist} Hz). Ajustando a Nyquist*0.99 para cumplir el teorema.")
@@ -270,7 +292,11 @@ Se guardan los datos en un archivo csv y con ello nos permitira luego graficarlo
     ecg_filtered = filtfilt(b_lp, a_lp, ecg_filtered_hp)
     print(f"Aplicado Filtro Pasa-Bajos de o menor {highcut:.2f} Hz")
 
-    ## Se hicieron un filtro de 0.5 Hz el pasa altos y un filtro pasa bajos de 6.20 Hz
+Ahora deberemos realizar un pasa-bajos en donde primero se verifica que cumpla con el teorema de Nyquist si es asi hara el filtro sin ningun problema si no lo cumple este se acoplara a la frecuencia mas cercana para poder realizar el filtro ejemplo tengo que la mitad de Fs es 50 Hz y el filtro es de 60Hz entonces lo que hara ser multiplicar a Nyquist *0,99 y con ello se acomplara el filtro pasa bajos a lo mas cercano que se pueda realizar el filtro, y con ello va a imprimir un:  
+
+Aplicado Filtro Pasa-Bajos de o menor 100 Hz
+
+    ## Se hicieron un filtro de 0.5 Hz el pasa altos y un filtro pasa bajos de 100 Hz
 
 
 
@@ -284,6 +310,10 @@ Se guardan los datos en un archivo csv y con ello nos permitira luego graficarlo
     plt.grid(True)
     plt.show()
 
+Ahora se va a observar la señal filtrada donde se espera que ya no exista un offset y la señal inicie desde 0 debido a que esta se daba ya que tenia una parte AC.
+
+![alt text](<images/ECG_filtered.png>)
+
     # Graficar señal original vs filtrada
     plt.figure(figsize=(10, 4))
     plt.plot(tiempo, voltaje, label="Señal Original", alpha=0.5, color="gray")
@@ -294,6 +324,10 @@ Se guardan los datos en un archivo csv y con ello nos permitira luego graficarlo
     plt.legend()
     plt.grid(True)
     plt.show()
+
+Ahora se van a comparar en una grafica ambas señales donde se puede observar que si el offset se fue del AC y si se realizo el filtro de la manera adecuada.
+
+![alt text](<images/ECG_comparate_filtered.png>)
 
 
     # Identificación de Picos R
@@ -482,41 +516,12 @@ Se guardan los datos en un archivo csv y con ello nos permitira luego graficarlo
             plt.tight_layout(rect=[0, 0.03, 1, 0.97]) # Ajustar layout para título
             plt.show()
 
-            # Análisis crítico (descripción según punto 9e):
-            print("\nAnálisis Crítico (Punto 9e):")
-            print("- Observa el espectrograma: ¿Hay zonas/tiempos con mayor potencia en la banda LF (roja)? ¿Y en la HF (cyan)?")
-            print("- Mira los gráficos de Potencia LF y HF vs Tiempo: ¿Cómo varían a lo largo de los 5 minutos?")
-            print("- ¿Hay periodos donde predomina la potencia LF sobre la HF (ratio LF/HF alto)? Esto podría sugerir mayor actividad simpática.")
-            print("- ¿Hay periodos donde predomina la potencia HF (ratio LF/HF bajo)? Esto podría sugerir mayor actividad parasimpática (vagal).")
-            print("- Dado que la señal fue tomada en reposo (según punto 9b), se esperaría una predominancia relativa de la actividad HF o un ratio LF/HF no muy elevado, pero esto depende mucho del estado del sujeto.")
-
         else:
             print("No hay suficientes puntos en la serie RR interpolada para análisis CWT.")
     else:
         print("No hay suficientes datos de intervalos RR (>5) para análisis wavelet.")
 
 
-    # --- Punto 10: Resultados Esperados / Discusión ---
-    # --- Reflexiones sobre Punto 10: Resultados Esperados ---
-
-    # 1. Comparación Dominio Tiempo vs. Tiempo-Frecuencia:
-    #    - Dominio Tiempo (SDNN): Da una medida global de la variabilidad total en los 5 min.
-    #    - Dominio Tiempo-Frecuencia (Wavelet): Muestra CÓMO cambia la distribución de potencia entre LF y HF a lo largo del tiempo.
-    #      Por ejemplo, el SDNN podría ser el mismo en dos grabaciones, pero una podría tener fluctuaciones rápidas entre LF y HF y la otra no; el wavelet lo mostraría.
-
-    # 2. Relación LF/HF con Actividad Autonómica:
-    #    - Banda LF (0.04-0.15 Hz): Se asocia con influencias simpáticas y parasimpáticas (más simpáticas, control barorreflejo).
-    #    - Banda HF (0.15-0.4 Hz): Se asocia principalmente con la modulación parasimpática (vagal) ligada a la respiración (arritmia sinusal respiratoria).
-    #    - Ratio LF/HF: A menudo se interpreta como un índice del balance simpático-vagal (valores altos -> predominio simpático; valores bajos -> predominio parasimpático).
-    #      Esta interpretación debe ser cautelosa.
-    #    - Discusión: ¿Los patrones de potencia LF y HF observados en el espectrograma y gráficos temporales son consistentes con una condición de reposo?
-
-    # 3. Transmisión del conocimiento:
-    #    - La guía menciona la importancia de poder explicar el código desarrollado (por ejemplo, en un repositorio público).
-    #    - Asegúrate de entender cada paso del código, los parámetros elegidos (filtros, picos, wavelet), y cómo interpretar los resultados.
-    #    - Comenta bien tu código final para que otros (y tú en el futuro) puedan entenderlo.
-
-    # --- Fin del Análisis ---
 
 
 

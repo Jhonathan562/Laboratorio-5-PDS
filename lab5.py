@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from scipy.signal import butter, filtfilt, find_peaks
 import pywt # Importar PyWavelets
 
-file_path = "DATA_ECG/ECG_7.csv" 
+file_path = "DATA_ECG/ECG_lab5.csv" 
 
 df = pd.read_csv(file_path)
 tiempo = df.iloc[:, 0].values  
@@ -21,7 +21,7 @@ plt.figure(figsize=(15, 4))
 plt.plot(tiempo, voltaje, label="Señal ECG Original", color="r")
 plt.xlabel("Tiempo (s)")
 plt.ylabel("Amplitud / Voltaje (v) ")
-plt.title("Señal ECG Original (1 min)")
+plt.title("Señal ECG Original (5 min)")
 plt.legend()
 plt.grid(True)
 plt.show()
