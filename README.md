@@ -339,6 +339,8 @@ Ahora se van a comparar en una grafica ambas señales donde se puede observar qu
     min_distance_samples = int(min_distance_sec * fs) #Convierte la distancia minima a tiempo para la grafica
     if min_distance_samples < 1: min_distance_samples = 1 # Asegurar distancia mínima de 1
 
+Ahora vamos a detectar los picos R-R para esto debemos tener en cuentra la distancia minima de separacion de picos en donde esta sera de 0,33 s en este caso lo tomaremos como 180 bpm, y el maximo como 40 bpms o 1,5 segundos ahora bien la distancia en segundos sera igual a 60/ bpm por lo que entre que mayor sea bpm menos segundos son y viceversa, la distancia se tomara como los 0,33 s por la fs lo que sera la distancia minima en la grafica asi mismo que la distancia de esta ha de ser 1.
+
     # Ahora adaptamos el Umbral pues sera el o la altura maxima que dara el pico o el R
     # Empezamos con un umbral basado en la desviación estándar
     # Se hace con la desviacion estandarf porque debe mantener todos los picos R como cierta altura media 
@@ -347,11 +349,22 @@ Ahora se van a comparar en una grafica ambas señales donde se puede observar qu
     if peak_height_threshold < np.percentile(ecg_filtered, 75): # Heurística simple
         peak_height_threshold = np.percentile(ecg_filtered, 75)
 
+Con esto vamos a tener en cuenta el umbral osea entiendase como los picos mas altos, osea R-R ya con esto hacemos una desviacion estandar de las muestras para poder observar los R-R mas altos sin dejar de lado a los mas puqueños que alcanzan el umbral para esto usamos la desviacion, como una altura media ya cin esto vamos a detectar los picos R-R ya con la señal filtrada como se observa en la grafica.
+
+
     print(f"Detectando picos R con altura > {peak_height_threshold:.3f} y distancia mínima > {min_distance_samples} muestras ({min_distance_sec:.2f} s)")
 
     peaks_indices, properties = find_peaks(ecg_filtered, height=peak_height_threshold, distance=min_distance_samples)
 
     print(f"Número de picos R detectados: {len(peaks_indices)}")
+
+Imprimimos la cantidad de picos R detectados en los 300 segundos en este cado fue de:
+
+Detectando picos R con altura > 0.219 y distancia mínima > 4 muestras (0.33 s)
+Número de picos R detectados: 353
+
+Donde cada pico R se toma como un ciclo cardiaco donde la frecuencia cardiaca se asume que con los picos detectados fue de 70.6
+
 
     # Visualización de picos detectados
     plt.figure(figsize=(15, 4))
@@ -364,12 +377,19 @@ Ahora se van a comparar en una grafica ambas señales donde se puede observar qu
     plt.grid(True)
     plt.show()
 
+![alt text](<images/ECG_picosR.png>)
+
+Ya con esto observamos la señal filtrada y los picos R-R que se detectan recordando que la R-R no es pareja sino que esta R puede aumentar y variar.
+
 
     # Se calculan los intervalor R-R para eso necesitamos 2 picos o 2 R ya dados en la grafica 
     if len(peaks_indices) > 1: #debe ser mayor a 1 porque el minimo de R-R son 2 
         rr_intervals_samples = np.diff(peaks_indices) # R-R de los intervalos va a ser igual a la diferencia de los picos
         rr_intervals_sec = rr_intervals_samples / fs # Convertimos los picos R-R a segundos para poder graficarlos 
         rr_times_sec = tiempo[peaks_indices[1:]]     # Tiempo correspondiente a cada intervalo RR
+
+Ahora vamos a calcular los intervalos R-R osea vamos a tomar el tiempo entre dos picos R, en donde el intervalo minimo es de 0.33 segundos osea que un pico a otro pico va a darse con una distancia de 0.33 segundos minimo, esta va a variar y va a ser el tiempo correspondiente a cada intervalo R-R
+
 
         if len(rr_intervals_sec) > 1:
             # Visualización de la serie de intervalos R-R (Tacograma)
@@ -381,12 +401,26 @@ Ahora se van a comparar en una grafica ambas señales donde se puede observar qu
             plt.grid(True)
             plt.show()
 
+Ahora se grafica los intervalos R-R y con esta grafica ahora vamos a realizar la transformada de wavelet y el HRV
+
+![alt text](<images/ECG_intervalosR.png>)
+
+Se observan los 353 picos R-R y con este en Y se dara el intervalo entre cada pico siendo en ms, donde el minimo eran 330 ms o 0.33 s, como se observa en la grafica de pico a pico hay una diferencia de tiempo alrededor de 400 a 1500 ms.
+
+
+
     # ---  Análisis de HRV en el dominio del tiempo ---
     mean_rr = np.mean(rr_intervals_sec) ## COGER EL INTERVALO DE DATOS DE RR
     sdnn = np.std(rr_intervals_sec) # Desviación estándar de los intervalos R-R
 
     print(f"Intervalo R-R Promedio : {mean_rr * 1000:.2f} ms") # Promedio de los intervalos R-R en este caso debe ser similar a 700 a 900 ms
     print(f"Desviación Estándar de Intervalos RR : {sdnn * 1000:.2f} ms") #Calculo de desviacion estandar
+
+Ahora realizaremos el analisis en el dominio del tiempo mediante la variacion de las frecuencias esto por medio de HRV para este tomaremos la nueva grafica dada por los picos R-R, y se calcularan el promedio de ms y la desviacion estandar.
+
+Intervalo R-R Promedio : 839.75 ms
+Desviación Estándar de Intervalos RR : 213.23 ms
+
 
 
     # --- Aplicación de transformada Wavelet ---
@@ -416,6 +450,8 @@ Ahora se van a comparar en una grafica ambas señales donde se puede observar qu
             plt.legend()
             plt.grid(True)
             plt.show()
+
+
 
             # 2. Calcular la Transformada Wavelet Continua (CWT)
             # Wavelet: 'cmorB-C' (Complex Morlet) es buena para tiempo-frecuencia. Ajustar B y C.
